@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>V리그 여자부 OH 스탯</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f12;
+    --bg2: #13161b;
+    --bg3: #1a1e25;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8eaf0;
+    --text2: #8891a4;
+    --text3: #555e6e;
+    --accent: #4f8ef7;
+    --good: #34d399;
+    --bad: #f87171;
+    --mono: 'DM Mono', monospace;
+    --sans: 'Noto Sans KR', sans-serif;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; font-size: 14px; }
+
+  .page { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  header {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;
+  }
+  .logo-area h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
+  .logo-area h1 span { color: var(--accent); }
+  .logo-area p { font-size: 12px; color: var(--text3); margin-top: 4px; font-family: var(--mono); }
+  .last-updated { font-size: 11px; color: var(--text3); font-family: var(--mono); text-align: right; }
+
+  .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .controls input, .controls select {
+    background: var(--bg2); border: 1px solid var(--border2); color: var(--text);
+    font-family: var(--sans); font-size: 13px; padding: 7px 12px;
+    border-radius: 6px; outline: none; transition: border-color 0.15s;
+  }
+  .controls input:focus, .controls select:focus { border-color: var(--accent); }
+  .controls input { width: 180px; }
+  .controls input::placeholder { color: var(--text3); }
+  .controls select option { background: #1a1e25; }
+
+  .tab-row { display: flex; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+  .tab {
+    padding: 9px 18px; font-size: 13px; cursor: pointer;
+    color: var(--text3); border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; font-weight: 500;
+  }
+  .tab:hover { color: var(--text2); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .table-wrap {
+    overflow-x: auto; border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 10px 10px; background: var(--bg2);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+  thead th {
+    padding: 10px 14px; background: var(--bg3); color: var(--text3);
+    font-size: 11px; font-weight: 500; text-align: center;
+    white-space: nowrap; cursor: pointer; user-select: none;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 2; transition: color 0.15s;
+    line-height: 1.4;
+  }
+  thead th:hover { color: var(--text2); }
+  thead th.sorted { color: var(--accent); }
+  thead th.col-fixed { cursor: default; text-align: left; }
+  .sort-arr { font-size: 9px; margin-left: 3px; opacity: 0.4; }
+  .sorted .sort-arr { opacity: 1; }
+
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg3); }
+
+  /* 고정 컬럼 (순위, 선수, 팀) */
+  tbody td { padding: 11px 14px; text-align: center; color: var(--text); font-family: var(--mono); font-size: 13px; white-space: nowrap; vertical-align: middle; }
+  tbody td.col-rank  { font-family: var(--sans); color: var(--text3); width: 40px; text-align: center; }
+  tbody td.col-name  { font-family: var(--sans); font-weight: 500; text-align: left; min-width: 72px; }
+  tbody td.col-team  { font-family: var(--sans); text-align: left; min-width: 110px; }
+  tbody td.col-stat  { text-align: center; min-width: 80px; }
+
+  .badge {
+    display: inline-block; font-size: 11px; padding: 3px 8px;
+    border-radius: 4px; font-weight: 600; letter-spacing: 0.2px;
+    font-family: var(--sans); white-space: nowrap;
+  }
+
+  .val-high { color: var(--good); }
+  .val-mid  { color: var(--text); }
+  .val-low  { color: var(--bad); }
+
+  .bar-cell { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .bar-bg { width: 44px; height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+  .bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+
+  .state-box {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 5rem 2rem; color: var(--text3); gap: 12px;
+  }
+  .spinner {
+    width: 28px; height: 28px; border: 2px solid var(--border2);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .state-box p { font-size: 13px; }
+
+  .rank-1 { color: #fbbf24; font-weight: 600; }
+  .rank-2 { color: #94a3b8; font-weight: 600; }
+  .rank-3 { color: #cd7f32; font-weight: 600; }
+
+  @media (max-width: 640px) {
+    .page { padding: 1.2rem 1rem 3rem; }
+    header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="logo-area">
+      <h1>V<span>STAT</span></h1>
+      <p>2025–26 V리그 여자부 · OH 국내 선수 · 가공 스탯</p>
+    </div>
+    <div class="last-updated" id="lastUpdated">데이터 불러오는 중…</div>
+  </header>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="선수 이름 검색" />
+    <select id="teamFilter"><option value="">전체 팀</option></select>
+  </div>
+
+  <div class="tab-row">
+    <div class="tab active" data-group="attack">공격</div>
+    <div class="tab" data-group="defense">수비</div>
+    <div class="tab" data-group="serve">서브</div>
+    <div class="tab" data-group="receive">리시브</div>
+    <div class="tab" data-group="combined">종합</div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="state-box" id="stateBox">
+      <div class="spinner"></div>
+      <p>스프레드시트 불러오는 중…</p>
+    </div>
+    <table id="mainTable" style="display:none">
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+<script>
+const SHEET_ID   = '1LwynsEo3tzYiZiJP-2yLpcF0yOl_gF2o4HpOQnZZnh4';
+const SHEET_NAME = '2025-2026';
+const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+const TEAM_COLORS = {
+  '정관장레드스파크스': { bg: '#2d0a0a', color: '#f87171' },
+  '정관장':            { bg: '#2d0a0a', color: '#f87171' },
+  '현대건설':          { bg: '#0f2a10', color: '#86efac' },
+  '흥국생명':          { bg: '#2d1535', color: '#f0abfc' },
+  '한국도로공사':      { bg: '#0a1e2d', color: '#7dd3fc' },
+  'IBK기업은행':       { bg: '#0a0f2d', color: '#818cf8' },
+  'GS칼텍스':          { bg: '#0f2a15', color: '#4ade80' },
+};
+
+const COL_TEAM = 2;
+const COL_NAME = 3;
+const COL_AO   = 40;
+
+const COLUMNS = [
+  { group:'attack',   offset:0,  label:'세트당\n공격시도',      hib:true  },
+  { group:'attack',   offset:1,  label:'순수\n공격효율',        hib:true  },
+  { group:'attack',   offset:2,  label:'공격\n위험도',          hib:false },
+  { group:'attack',   offset:3,  label:'성공대비\n범실비',      hib:true  },
+  { group:'attack',   offset:5,  label:'공격+리시브\n종합마진', hib:true  },
+  { group:'attack',   offset:6,  label:'공격\n가성비지수',      hib:true  },
+  { group:'defense',  offset:7,  label:'세트당\n디그마진',      hib:true  },
+  { group:'defense',  offset:8,  label:'디그\n전환율',          hib:true  },
+  { group:'defense',  offset:9,  label:'세트당\n블로킹기여',    hib:true  },
+  { group:'defense',  offset:10, label:'유효블록\n전환율',      hib:true  },
+  { group:'serve',    offset:11, label:'세트당\n서브마진',      hib:true  },
+  { group:'receive',  offset:4,  label:'세트당\n리시브마진',    hib:true  },
+  { group:'receive',  offset:12, label:'연결\n안정도',          hib:true  },
+  { group:'combined', offset:13, label:'세트당\n종합마진',      hib:true  },
+];
+
+let allData  = [];
+let sortKey  = 0;
+let sortAsc  = false;
+let curGroup = 'attack';
+
+function parseCSV(text) {
+  return text.trim().split('\n').map(line => {
+    const cols = []; let cur = '', inQ = false;
+    for (const c of line) {
+      if (c === '"') inQ = !inQ;
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    cols.push(cur.trim()); return cols;
+  });
+}
+
+function toNum(v) {
+  if (v == null || v === '') return null;
+  const n = parseFloat(String(v).replace(/,/g, ''));
+  return isNaN(n) ? null : n;
+}
+
+async function loadData() {
+  try {
+    const res = await fetch(CSV_URL);
+    if (!res.ok) throw new Error('fetch 실패');
+    const rows = parseCSV(await res.text());
+    if (rows.length < 2) throw new Error('데이터 없음');
+
+    allData = rows.slice(1)
+      .filter(r => r[COL_NAME] && r[COL_NAME] !== '')
+      .map(r => ({
+        name:  r[COL_NAME] || '',
+        team:  r[COL_TEAM] || '',
+        stats: COLUMNS.map(c => toNum(r[COL_AO + c.offset])),
+      }));
+
+    document.getElementById('lastUpdated').textContent =
+      `업데이트: ${new Date().toLocaleDateString('ko-KR')}`;
+
+    const sel = document.getElementById('teamFilter');
+    [...new Set(allData.map(p => p.team))].filter(Boolean).forEach(t => {
+      const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o);
+    });
+
+    render();
+  } catch(e) {
+    document.getElementById('stateBox').innerHTML =
+      `<p>⚠️ 데이터를 불러오지 못했습니다.</p><p style="font-size:12px;margin-top:6px;color:var(--text3)">${e.message}</p>`;
+  }
+}
+
+function render() {
+  const q  = document.getElementById('search').value.trim();
+  const tf = document.getElementById('teamFilter').value;
+
+  let data = allData.filter(p => (!q || p.name.includes(q)) && (!tf || p.team === tf));
+
+  // sortKey는 COLUMNS 배열 인덱스
+  data = [...data].sort((a, b) => {
+    const av = a.stats[sortKey] ?? -Infinity;
+    const bv = b.stats[sortKey] ?? -Infinity;
+    return sortAsc ? av - bv : bv - av;
+  });
+
+  const visCols = COLUMNS.map((c, i) => ({ ...c, idx: i })).filter(c => c.group === curGroup);
+
+  // 컬럼별 min/max
+  const minMax = visCols.map(c => {
+    const vals = data.map(p => p.stats[c.idx]).filter(v => v !== null);
+    return { min: Math.min(...vals), max: Math.max(...vals) };
+  });
+
+  // 헤더
+  const thead = document.getElementById('thead');
+  thead.innerHTML = `<tr>
+    <th class="col-fixed" style="width:40px">#</th>
+    <th class="col-fixed" style="min-width:72px">선수</th>
+    <th class="col-fixed" style="min-width:110px">팀</th>
+    ${visCols.map(c => `
+      <th data-idx="${c.idx}" class="${sortKey===c.idx?'sorted':''}" style="min-width:80px">
+        ${c.label.replace('\n','<br>')}
+        <span class="sort-arr">${sortKey===c.idx?(sortAsc?'▲':'▼'):'↕'}</span>
+      </th>`).join('')}
+  </tr>`;
+
+  thead.querySelectorAll('th[data-idx]').forEach(th => {
+    th.addEventListener('click', () => {
+      const idx = +th.dataset.idx;
+      sortKey === idx ? sortAsc = !sortAsc : (sortKey = idx, sortAsc = false);
+      render();
+    });
+  });
+
+  // 바디
+  const tbody = document.getElementById('tbody');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="${visCols.length+3}" style="text-align:center;padding:2rem;color:var(--text3)">검색 결과 없음</td></tr>`;
+  } else {
+    tbody.innerHTML = data.map((p, i) => {
+      const tc = TEAM_COLORS[p.team] || { bg:'#1a1e25', color:'#8891a4' };
+      const rk = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+      return `<tr>
+        <td class="col-rank"><span class="${rk}">${i+1}</span></td>
+        <td class="col-name">${p.name}</td>
+        <td class="col-team"><span class="badge" style="background:${tc.bg};color:${tc.color}">${p.team}</span></td>
+        ${visCols.map((c, ci) => {
+          const v = p.stats[c.idx];
+          if (v === null) return `<td class="col-stat" style="color:var(--text3)">—</td>`;
+          const { min, max } = minMax[ci];
+          const norm = (max - min) ? (v - min) / (max - min) : 0.5;
+          const pct  = c.hib ? norm : 1 - norm;
+          const cls  = pct > 0.65 ? 'val-high' : pct < 0.3 ? 'val-low' : 'val-mid';
+          const barW = Math.round(pct * 100);
+          const disp = Number.isInteger(v) ? v : v.toFixed(2);
+          return `<td class="col-stat">
+            <div class="bar-cell">
+              <span class="${cls}">${disp}</span>
+              <div class="bar-bg"><div class="bar-fill" style="width:${barW}%"></div></div>
+            </div>
+          </td>`;
+        }).join('')}
+      </tr>`;
+    }).join('');
+  }
+
+  document.getElementById('stateBox').style.display  = 'none';
+  document.getElementById('mainTable').style.display = 'table';
+}
+
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('teamFilter').addEventListener('change', render);
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    curGroup = tab.dataset.group;
+    sortKey = COLUMNS.findIndex(c => c.group === curGroup);
+    sortAsc = false;
+    render();
+  });
+});
+
+loadData();
+</script>
+</body>
+</html>
